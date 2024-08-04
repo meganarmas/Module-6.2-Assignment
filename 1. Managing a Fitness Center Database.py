@@ -44,7 +44,7 @@ def get_db_connection():
             conn.close()
             print("My SQL connection is closed.")
 
-@app.route('/members', methods=['POST'])
+@app.route('/Members', methods=['POST'])
 def add_member():
     try:
         member_data = member_schema.load(request.json)
@@ -75,15 +75,8 @@ def add_member():
             conn.close()
             print("My SQL connection is closed.")
 
-@app.route('/members/<int:id>', methods=['GET'])
+@app.route('/Members/<int:id>', methods=['GET'])
 def get_member(id):
-    try:
-        member_data = member_schema.load(request.json)
-    
-    except ValidationError as e:
-        print(f"Error: {e}")
-        return jsonify(e.messages), 500
-    
     try:
         conn = get_db_connection()
         if conn is None:
@@ -92,7 +85,7 @@ def get_member(id):
         cursor = conn.cursor()
         query = "SELECT * FROM Members where id = %s"
 
-        cursor.execute(query)
+        cursor.execute(query, (id))
         member = cursor.fetchone()
 
         if member:
@@ -108,9 +101,85 @@ def get_member(id):
             print("My SQL connection is closed.")
 
 @app.route('/Members/<int:id>', methods=['GET'])
-def get_all_member(id):
+def get_all_member(id):    
     try:
-        member_data = member_schema.load(request.json)
+        conn = get_db_connection()
+        if conn is None:
+            return jsonify({"error": "Data connection failed"}), 500
+        
+        cursor = conn.cursor()
+        query = "SELECT * FROM Members"
+
+        cursor.execute(query, (id))
+        conn.commit
+        return jsonify({"message": "Member deleted successfully"}), 201
+
+    except ValidationError as e:
+        print(f"Error: {e}"), 500
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
+            print("My SQL connection is closed.")
+
+@app.route('/Members/<int:id>', methods=['DELETE'])
+def delete_member(id):    
+    try:
+        conn = get_db_connection()
+        if conn is None:
+            return jsonify({"error": "Data connection failed"}), 500
+        
+        cursor = conn.cursor()
+        query = "DELETE FROM Members WHERE id = %s"
+
+        cursor.execute(query, (id))
+        member = cursor.fetchall()
+        return jsonify (members_schema.dump(member))
+
+    except ValidationError as e:
+        print(f"Error: {e}"), 500
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
+            print("My SQL connection is closed.")
+
+@app.route('/Members/<int:id>', methods=['PUT'])
+def update_member(id):    
+    try:
+        conn = get_db_connection()
+        if conn is None:
+            return jsonify({"error": "Data connection failed"}), 500
+        
+        cursor = conn.cursor()
+        query = "UPDATE Members SET name = %s, age= %s WHERE id = %s"
+
+        cursor.execute(query, id, (data['name']), (data['id']))
+        cursor.commit
+        return jsonify({"message": "Member information updated successfully."})
+
+    except ValidationError as e:
+        print(f"Error: {e}"), 500
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
+            print("My SQL connection is closed.")
+
+class WorkoutSessionSchema(ma.Schema):
+    session_id = fields.String(required=True)
+    member_id = fields.String(required=True)
+    session_date = fields.String(required=True)
+    session_time = fields.String(required=True)
+    activity= fields.String(required=True)
+
+    class Meta:
+        fields = ("session_id", "member_id", "session_date", "session_time", "activity")
+
+WorkoutSession_schema = WorkoutSessionSchema()
+WorkoutSessions_schema = WorkoutSessionSchema(many=True)
+
+@app.route('/WorkoutSessions', methods=['POST'])
+def add_workoutsession():
+    try:
+        workoutsession_data = WorkoutSession_schema.load(request.json)
     
     except ValidationError as e:
         print(f"Error: {e}")
@@ -122,11 +191,60 @@ def get_all_member(id):
             return jsonify({"error": "Data connection failed"}), 500
         
         cursor = conn.cursor()
-        query = "SELECT * FROM Members"
 
-        cursor.execute(query)
-        member = cursor.fetchall()
-        return jsonify (members_schema.dump(member))
+        new_session = (workoutsession_data['id'], workoutsession_data['name'], workoutsession_data['age'])
+
+        query = "INSERT INTO Customers (id, name, age) VALUES (%s, %s, %s)"
+
+        cursor.execute(query, new_session)
+        conn.commit()
+
+        return jsonify({"message": "New workout session added successfully"}), 201
+    except ValidationError as e:
+        print(f"Error: {e}")
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
+            print("My SQL connection is closed.")
+
+@app.route('/WorkoutSessions/<int:id>', methods=['GET'])
+def get_workoutsession(session_id):
+    try:
+        conn = get_db_connection()
+        if conn is None:
+            return jsonify({"error": "Data connection failed"}), 500
+        
+        cursor = conn.cursor()
+        query = "SELECT * FROM Members where id = %s"
+
+        cursor.execute(query, (session_id))
+        session = cursor.fetchone()
+
+        if session:
+            return jsonify(WorkoutSession_schema.dump(session))
+        else:
+            return jsonify({"Error: Session not found."}), 404
+
+    except ValidationError as e:
+        print(f"Error: {e}")
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
+            print("My SQL connection is closed.")
+
+@app.route('/WorkoutSession /<int:id>', methods=['PUT'])
+def update_member(id):    
+    try:
+        conn = get_db_connection()
+        if conn is None:
+            return jsonify({"error": "Data connection failed"}), 500
+        
+        cursor = conn.cursor()
+        query = "UPDATE WorkoutSession SET session_date = %s, session_time= %s, activity = %s WHERE session_id = %s"
+
+        cursor.execute(query, id, (data['session_date']), (data['session_time']), (data['activity']))
+        cursor.commit
+        return jsonify({"message": "Workout Session updated successfully."})
 
     except ValidationError as e:
         print(f"Error: {e}"), 500
@@ -134,16 +252,3 @@ def get_all_member(id):
         if conn and conn.is_connected():
             conn.close()
             print("My SQL connection is closed.")
-
-class WorkoutSession(ma.Schema):
-    session_id = fields.String(required=True)
-    member_id = fields.String(required=True)
-    session_date = fields.String(required=True)
-    session_time = fields.String(required=True)
-    activity= fields.String(required=True)
-
-    class Meta:
-        fields = ("session_id", "member_id", "session_date", "session_time", "activity")
-
-member_schema = MemberSchema()
-members_schema = MemberSchema(many=True)
